@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Inan Motos — Admin</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root{
+      --black:#0a0a0a;--dark:#111;--card:#171717;--card2:#1f1f1f;
+      --silver:#c0c4d0;--silver2:#dde0ea;--silver3:#7a7f90;
+      --white:#f4f6fa;--border:rgba(192,196,208,.15);--border2:rgba(192,196,208,.07);
+      --red:#e53935;--green:#27ae60;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--black);color:var(--white);font-family:'Inter',sans-serif;font-weight:300;min-height:100vh}
+
+    /* LOGIN */
+    #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--black)}
+    #admin-screen{display:none;min-height:100vh}
+    .login-box{background:var(--card);border:1px solid var(--border);padding:3rem 2.5rem;width:100%;max-width:420px;text-align:center}
+    .login-logo{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.2em;color:var(--silver2);margin-bottom:.2rem}
+    .login-sub{font-family:'Rajdhani',sans-serif;font-size:.68rem;letter-spacing:.25em;text-transform:uppercase;color:var(--silver3);margin-bottom:2.5rem}
+    .login-label{font-family:'Rajdhani',sans-serif;font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--silver3);display:block;text-align:left;margin-bottom:.4rem}
+    .login-input{width:100%;padding:11px 14px;background:var(--card2);border:1px solid var(--border);color:var(--white);font-family:'Inter',sans-serif;font-size:.88rem;outline:none;margin-bottom:1rem;transition:border-color .2s}
+    .login-input:focus{border-color:var(--silver3)}
+    .login-btn{width:100%;padding:13px;background:var(--silver2);color:var(--black);font-family:'Rajdhani',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;border:none;cursor:pointer;transition:background .2s}
+    .login-btn:hover{background:var(--white)}
+    .login-err{font-size:.78rem;color:var(--red);margin-top:.8rem;display:none}
+
+    /* NAV */
+    .admin-nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;height:60px;background:rgba(10,10,10,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+    .nav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.2em;color:var(--silver2)}
+    .nav-right{display:flex;gap:.8rem;align-items:center}
+    .btn-sm{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;padding:7px 16px;border:1px solid var(--border);color:var(--silver3);background:transparent;cursor:pointer;text-decoration:none;display:inline-block;transition:all .2s}
+    .btn-sm:hover{border-color:var(--silver);color:var(--white)}
+    .btn-sm.primary{background:var(--silver2);color:var(--black);border-color:transparent;font-weight:700}
+    .btn-sm.primary:hover{background:var(--white);color:var(--black)}
+
+    /* LAYOUT */
+    .admin-body{display:grid;grid-template-columns:1fr 400px;min-height:calc(100vh - 60px)}
+    @media(max-width:900px){.admin-body{grid-template-columns:1fr}}
+
+    /* LEFT */
+    .panel-left{border-right:1px solid var(--border);padding:1.5rem 2rem}
+    .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+    .panel-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.04em;color:var(--white)}
+
+    /* STATS */
+    .stats-bar{display:flex;gap:.6rem;margin-bottom:1.2rem;flex-wrap:wrap}
+    .stat{background:var(--card);border:1px solid var(--border2);padding:.6rem 1rem;min-width:80px}
+    .stat-val{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.03em;color:var(--silver2)}
+    .stat-label{font-family:'Rajdhani',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--silver3)}
+
+    /* FILTER */
+    .filter-strip{display:flex;gap:.4rem;margin-bottom:1.2rem;flex-wrap:wrap}
+    .fs-btn{font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:5px 12px;border:1px solid var(--border);background:transparent;color:var(--silver3);cursor:pointer;transition:all .2s}
+    .fs-btn.active,.fs-btn:hover{border-color:var(--silver);color:var(--white);background:rgba(192,196,208,.06)}
+
+    /* LIST */
+    .product-row{display:flex;align-items:center;gap:1rem;padding:.9rem;background:var(--card);border:1px solid transparent;margin-bottom:3px;cursor:pointer;transition:border-color .2s}
+    .product-row:hover{border-color:var(--border2)}
+    .product-row.editing{border-color:var(--silver3)}
+    .row-thumb{width:54px;height:54px;background:var(--card2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+    .row-thumb img{width:100%;height:100%;object-fit:cover}
+    .row-info{flex:1;min-width:0}
+    .row-name{font-family:'Rajdhani',sans-serif;font-size:.95rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .row-meta{font-family:'Rajdhani',sans-serif;font-size:.6rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--silver3);margin-top:.15rem}
+    .row-price{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.03em;color:var(--silver2);flex-shrink:0}
+    .row-actions{display:flex;gap:.3rem;flex-shrink:0}
+    .icon-btn{width:30px;height:30px;border:1px solid var(--border);background:transparent;color:var(--silver3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .2s}
+    .icon-btn:hover{border-color:var(--silver);color:var(--white)}
+    .icon-btn.del:hover{border-color:var(--red);color:var(--red)}
+    .empty-state{text-align:center;padding:4rem 2rem;color:var(--silver3)}
+    .empty-state p{font-family:'Rajdhani',sans-serif;font-size:.9rem;letter-spacing:.05em}
+
+    /* RIGHT PANEL */
+    .panel-right{padding:1.5rem 2rem;background:var(--dark);position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto}
+    .form-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.04em;margin-bottom:1.5rem;color:var(--white)}
+    .form-title span{color:var(--silver)}
+
+    /* FORM */
+    .field{margin-bottom:1rem}
+    .field label{font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--silver3);display:block;margin-bottom:.35rem}
+    .field input,.field textarea,.field select{width:100%;padding:10px 12px;background:var(--card);border:1px solid var(--border);color:var(--white);font-family:'Inter',sans-serif;font-size:.85rem;outline:none;resize:vertical;transition:border-color .2s}
+    .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--silver3)}
+    .field select option{background:var(--card)}
+
+    /* GALLERY */
+    .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:.6rem}
+    .gallery-thumb{position:relative;aspect-ratio:1/1;background:var(--card2);overflow:hidden;border:1px solid var(--border)}
+    .gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .thumb-remove{position:absolute;top:4px;right:4px;width:22px;height:22px;background:rgba(0,0,0,.8);border:none;color:#fff;font-size:.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+    .thumb-remove:hover{background:var(--red)}
+    .thumb-main-badge{position:absolute;bottom:4px;left:4px;font-family:'Rajdhani',sans-serif;font-size:.55rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--silver2);color:var(--black);padding:2px 6px}
+    .thumb-set-main{position:absolute;bottom:4px;right:4px;font-family:'Rajdhani',sans-serif;font-size:.55rem;letter-spacing:.08em;text-transform:uppercase;background:rgba(0,0,0,.75);color:var(--silver3);padding:2px 5px;border:none;cursor:pointer}
+    .gallery-add{aspect-ratio:1/1;border:1px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:border-color .2s}
+    .gallery-add:hover{border-color:var(--silver3)}
+    .gallery-add input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .gallery-add-icon{font-size:1.4rem;opacity:.2}
+    .gallery-add-text{font-family:'Rajdhani',sans-serif;font-size:.58rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--silver3);margin-top:.3rem}
+    .gallery-hint{font-family:'Rajdhani',sans-serif;font-size:.6rem;letter-spacing:.1em;color:var(--silver3)}
+
+    /* SIZES */
+    .sizes-grid{display:flex;flex-wrap:wrap;gap:.35rem}
+    .size-check{display:none}
+    .size-check+label{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.1em;padding:5px 12px;border:1px solid var(--border);color:var(--silver3);cursor:pointer;transition:all .2s}
+    .size-check:checked+label{border-color:var(--silver);color:var(--white);background:rgba(192,196,208,.08)}
+
+    /* BADGES */
+    .badge-opts{display:flex;flex-wrap:wrap;gap:.35rem}
+    .badge-radio{display:none}
+    .badge-radio+label{font-family:'Rajdhani',sans-serif;font-size:.62rem;font-weight:600;letter-spacing:.1em;padding:4px 11px;border:1px solid var(--border);color:var(--silver3);cursor:pointer;transition:all .2s}
+    .badge-radio:checked+label{border-color:var(--silver);color:var(--white);background:rgba(192,196,208,.08)}
+
+    /* FORM ACTIONS */
+    .form-actions{display:flex;gap:.5rem;margin-top:1.5rem}
+    .btn-save{flex:1;padding:12px;background:var(--silver2);color:var(--black);font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;border:none;cursor:pointer;transition:background .2s}
+    .btn-save:hover{background:var(--white)}
+    .btn-cancel{padding:12px 18px;border:1px solid var(--border);background:transparent;color:var(--silver3);font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+    .btn-cancel:hover{border-color:var(--silver);color:var(--white)}
+
+    /* TOAST */
+    .toast{position:fixed;bottom:2rem;right:2rem;background:var(--card);border:1px solid var(--silver3);padding:.9rem 1.4rem;font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--silver2);z-index:9000;transform:translateY(100px);opacity:0;transition:all .3s}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.error{border-color:var(--red);color:var(--red)}
+    .toast.success{border-color:var(--green);color:var(--green)}
+
+    /* CONFIRM */
+    .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+    .confirm-overlay.open{display:flex}
+    .confirm-box{background:var(--card);border:1px solid var(--border);padding:2rem;max-width:340px;width:100%;text-align:center}
+    .confirm-box h3{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;margin-bottom:.6rem}
+    .confirm-box p{font-size:.8rem;color:var(--silver3);margin-bottom:1.5rem}
+    .confirm-btns{display:flex;gap:.5rem}
+    .confirm-yes{flex:1;padding:10px;background:var(--red);border:none;color:#fff;font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
+    .confirm-no{flex:1;padding:10px;border:1px solid var(--border);background:transparent;color:var(--silver3);font-family:'Rajdhani',sans-serif;font-size:.72rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;cursor:pointer}
+
+    @media(max-width:600px){
+      .admin-nav{padding:0 1rem}
+      .panel-left,.panel-right{padding:1.2rem}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">INAN MOTOS</div>
+    <p class="login-sub">Painel Administrativo</p>
+    <label class="login-label">Usuário</label>
+    <input class="login-input" id="l-user" type="text" placeholder="admin"/>
+    <label class="login-label">Senha</label>
+    <input class="login-input" id="l-pass" type="password" placeholder="••••••••"/>
+    <button class="login-btn" id="login-btn">Entrar</button>
+    <p class="login-err" id="l-err">Usuário ou senha incorretos.</p>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="admin-screen">
+  <nav class="admin-nav">
+    <div class="nav-logo">INAN MOTOS — Admin</div>
+    <div class="nav-right">
+      <a class="btn-sm" href="index.html" target="_blank">Ver Loja ↗</a>
+      <button class="btn-sm" id="logout-btn">Sair</button>
+    </div>
+  </nav>
+
+  <div class="admin-body">
+    <!-- LEFT -->
+    <div class="panel-left">
+      <div class="panel-header">
+        <h2 class="panel-title">Produtos</h2>
+        <button class="btn-sm primary" id="new-btn">+ Novo Produto</button>
+      </div>
+      <div class="stats-bar" id="stats-bar"></div>
+      <div class="filter-strip">
+        <button class="fs-btn active" data-f="todos">Todos</button>
+        <button class="fs-btn" data-f="gt6">GT6</button>
+        <button class="fs-btn" data-f="acessorios">Acessórios</button>
+        <button class="fs-btn" data-f="adesivos">Adesivos</button>
+        <button class="fs-btn" data-f="borracha">Borracha</button>
+        <button class="fs-btn" data-f="eletrica">Elétrica</button>
+        <button class="fs-btn" data-f="freios">Freios</button>
+        <button class="fs-btn" data-f="lubrificantes">Lubrificantes</button>
+        <button class="fs-btn" data-f="mecanica">Mecânica</button>
+        <button class="fs-btn" data-f="metal">Metal-Mec.</button>
+        <button class="fs-btn" data-f="motor">Motor</button>
+        <button class="fs-btn" data-f="plastico">Plástico</button>
+        <button class="fs-btn" data-f="pneu">Pneu</button>
+        <button class="fs-btn" data-f="quadro">Quadro</button>
+        <button class="fs-btn" data-f="vestuario">Vestuário</button>
+      </div>
+      <div id="product-list"><div class="empty-state"><p>Carregando...</p></div></div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="panel-right">
+      <h3 class="form-title" id="form-title">Novo <span>Produto</span></h3>
+
+      <div class="field">
+        <label>Nome do Produto *</label>
+        <input type="text" id="f-name" placeholder="Ex: Pastilha de Freio Dianteira Honda CG"/>
+      </div>
+      <div class="field">
+        <label>Categoria *</label>
+        <select id="f-cat">
+          <option value="">Selecione...</option>
+          <option value="gt6">GT6</option>
+          <option value="acessorios">Acessórios</option>
+          <option value="adesivos">Adesivos</option>
+          <option value="borracha">Borracha</option>
+          <option value="eletrica">Elétrica</option>
+          <option value="freios">Freios</option>
+          <option value="lubrificantes">Lubrificantes</option>
+          <option value="mecanica">Mecânica</option>
+          <option value="metal">Metal-Mecânica</option>
+          <option value="motor">Motor</option>
+          <option value="plastico">Plástico</option>
+          <option value="pneu">Pneu</option>
+          <option value="quadro">Quadro</option>
+          <option value="vestuario">Vestuário</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Descrição *</label>
+        <textarea id="f-desc" rows="3" placeholder="Descreva o produto, compatibilidade com modelos, especificações..."></textarea>
+      </div>
+      <div class="field">
+        <label>Preço *</label>
+        <input type="text" id="f-price" placeholder="Ex: 29900 = R$ 299,00" inputmode="numeric"/>
+      </div>
+      <div class="field">
+        <label>Compatibilidade / Tamanhos</label>
+        <div class="sizes-grid" id="sizes-grid"></div>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <div class="badge-opts">
+          <input class="badge-radio" type="radio" name="soldout" id="so0" value="0" checked/><label for="so0">✓ Disponível</label>
+          <input class="badge-radio" type="radio" name="soldout" id="so1" value="1"/><label for="so1">✗ Esgotado</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Badge</label>
+        <div class="badge-opts">
+          <input class="badge-radio" type="radio" name="badge" id="b0" value="" checked/><label for="b0">Nenhum</label>
+          <input class="badge-radio" type="radio" name="badge" id="b1" value="Novo"/><label for="b1">Novo</label>
+          <input class="badge-radio" type="radio" name="badge" id="b2" value="Promoção"/><label for="b2">Promoção</label>
+          <input class="badge-radio" type="radio" name="badge" id="b3" value="Destaque"/><label for="b3">Destaque</label>
+          <input class="badge-radio" type="radio" name="badge" id="b4" value="Mais Vendido"/><label for="b4">Mais Vendido</label>
+          <input class="badge-radio" type="radio" name="badge" id="b5" value="Última Unidade"/><label for="b5">Última Unidade</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Fotos do Produto (máx. 6)</label>
+        <div class="gallery-grid" id="gallery-grid"></div>
+        <p class="gallery-hint" id="gallery-hint">Nenhuma foto adicionada.</p>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-save" id="save-btn">Salvar Produto</button>
+        <button class="btn-cancel" id="cancel-btn">Limpar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <h3>Excluir Produto</h3>
+    <p>Essa ação não pode ser desfeita.</p>
+    <div class="confirm-btns">
+      <button class="confirm-yes" id="confirm-yes">Excluir</button>
+      <button class="confirm-no" id="confirm-no">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── FIREBASE ──
+firebase.initializeApp({
+  apiKey:"AIzaSyDwSHknfuF0G7S8u8SKroDKKn5lr0mJrbs",
+  authDomain:"inan-motos.firebaseapp.com",
+  projectId:"inan-motos",
+  storageBucket:"inan-motos.firebasestorage.app",
+  messagingSenderId:"17345560175",
+  appId:"1:17345560175:web:5e7a3a5f60e41ba968579a"
+});
+var db=firebase.firestore();
+
+// ── CLOUDINARY (mesmo do P9 Imports) ──
+var CLOUD='dwoc2bwgf',PRESET='p9imports',MAX_PHOTOS=6;
+
+// ── CONFIG ──
+var ADMIN_USER='admin',ADMIN_PASS='inanmotos2025',SESSION_KEY='inan_admin_session',COL='inan_produtos';
+
+var SIZE_MAP={
+  gt6:['Universal'],
+  acessorios:['Universal','P','M','G','GG'],
+  adesivos:['Universal'],
+  borracha:['Universal'],
+  eletrica:['Universal'],
+  freios:['Dianteiro','Traseiro','Dianteiro e Traseiro'],
+  lubrificantes:['500ml','1L','4L','5L','20L'],
+  mecanica:['Universal'],
+  metal:['Universal'],
+  motor:['Universal'],
+  plastico:['Universal'],
+  pneu:['90/90-18','100/80-18','110/90-17','120/80-17','130/70-17','140/70-17'],
+  quadro:['Universal'],
+  vestuario:['PP','P','M','G','GG','XG','XXG']
+};
+var CAT_LABEL={todos:'Todos',gt6:'GT6',acessorios:'Acessórios',adesivos:'Adesivos',borracha:'Borracha',eletrica:'Elétrica',freios:'Freios',lubrificantes:'Lubrificantes',mecanica:'Mecânica',metal:'Metal-Mecânica',motor:'Motor',plastico:'Plástico',pneu:'Pneu',quadro:'Quadro',vestuario:'Vestuário'};
+var CAT_EMOJI={gt6:'🏍️',acessorios:'⚙️',adesivos:'🎨',borracha:'🔩',eletrica:'⚡',freios:'🛑',lubrificantes:'🛢️',mecanica:'🔨',metal:'🔗',motor:'🏎️',plastico:'🧱',pneu:'🛞',quadro:'🏗️',vestuario:'🧥'};
+
+// ── STATE ──
+var products=[],editingId=null,currentFilter='todos',deleteId=null,galleryImgs=[];
+var toastTimer;
+
+// ── TOAST ──
+function showToast(msg,type){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+(type||'');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){t.classList.remove('show');},3000);
+}
+
+// ── AUTH ──
+function doLogin(){
+  var u=document.getElementById('l-user').value.trim();
+  var p=document.getElementById('l-pass').value;
+  if(u===ADMIN_USER&&p===ADMIN_PASS){
+    sessionStorage.setItem(SESSION_KEY,'1');
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('admin-screen').style.display='block';
+    startApp();
+  } else {
+    document.getElementById('l-err').style.display='block';
+  }
+}
+
+function startApp(){
+  buildSizesGrid('acessorios');
+  renderGallery();
+  db.collection(COL).orderBy('ordem','asc').onSnapshot(function(snap){
+    products=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    renderAll();
+  },function(e){console.error(e);showToast('Erro ao carregar produtos.','error');});
+}
+
+// ── RENDER ──
+function renderAll(){renderStats();renderList();}
+
+function renderStats(){
+  var cats=Object.keys(CAT_LABEL).filter(function(c){return c!=='todos';});
+  var counts={};cats.forEach(function(c){counts[c]=0;});
+  products.forEach(function(p){if(counts[p.cat]!==undefined)counts[p.cat]++;});
+  document.getElementById('stats-bar').innerHTML=
+    '<div class="stat"><div class="stat-val">'+products.length+'</div><div class="stat-label">Total</div></div>'+
+    cats.map(function(c){return counts[c]>0?'<div class="stat"><div class="stat-val">'+counts[c]+'</div><div class="stat-label">'+CAT_LABEL[c]+'</div></div>':'';}).join('');
+}
+
+function renderList(){
+  var filtered=currentFilter==='todos'?products:products.filter(function(p){return p.cat===currentFilter;});
+  var el=document.getElementById('product-list');
+  if(!filtered.length){el.innerHTML='<div class="empty-state"><p>Nenhum produto aqui ainda.</p></div>';return;}
+  el.innerHTML=filtered.map(function(p){
+    return '<div class="product-row'+(editingId==p.id?' editing':'')+'" data-id="'+p.id+'">'+
+      '<div class="row-thumb">'+(p.img?'<img src="'+p.img+'" />':(CAT_EMOJI[p.cat]||'🔧'))+'</div>'+
+      '<div class="row-info"><div class="row-name">'+p.name+'</div>'+
+      '<div class="row-meta">'+(CAT_LABEL[p.cat]||p.cat)+(p.badge?' · '+p.badge:'')+(p.soldOut?' · ESGOTADO':'')+'</div></div>'+
+      '<div class="row-price">'+p.price+'</div>'+
+      '<div class="row-actions">'+
+      '<button class="icon-btn" data-edit="'+p.id+'">✏️</button>'+
+      '<button class="icon-btn del" data-del="'+p.id+'">🗑️</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ── FILTER ──
+document.querySelectorAll('.fs-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.fs-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');currentFilter=btn.dataset.f;renderList();
+  });
+});
+
+// ── SIZES ──
+function buildSizesGrid(cat){
+  var sizes=SIZE_MAP[cat]||['Universal'];
+  document.getElementById('sizes-grid').innerHTML=sizes.map(function(s){
+    return '<input class="size-check" type="checkbox" id="sz-'+s.replace(/\//g,'-')+'" value="'+s+'"/>'+
+      '<label for="sz-'+s.replace(/\//g,'-')+'">'+s+'</label>';
+  }).join('');
+}
+function getSelectedSizes(){return Array.from(document.querySelectorAll('.size-check:checked')).map(function(c){return c.value;});}
+function setSelectedSizes(sizes){document.querySelectorAll('.size-check').forEach(function(c){c.checked=sizes&&sizes.includes(c.value);});}
+document.getElementById('f-cat').addEventListener('change',function(){if(this.value)buildSizesGrid(this.value);});
+
+// ── PRICE FORMAT ──
+document.getElementById('f-price').addEventListener('input',function(){
+  var digits=this.value.replace(/\D/g,'');
+  if(!digits){this.value='';return;}
+  var num=parseInt(digits,10);
+  this.value='R$ '+(num/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+});
+
+// ── GALLERY ──
+function renderGallery(){
+  var grid=document.getElementById('gallery-grid');
+  var html='';
+  galleryImgs.forEach(function(src,i){
+    html+='<div class="gallery-thumb">'+
+      '<img src="'+src+'"/>'+
+      '<button class="thumb-remove" data-ri="'+i+'">✕</button>'+
+      (i===0?'<span class="thumb-main-badge">Principal</span>':'<button class="thumb-set-main" data-mi="'+i+'">★</button>')+
+      '</div>';
+  });
+  if(galleryImgs.length<MAX_PHOTOS){
+    html+='<label class="gallery-add"><input type="file" accept="image/*" multiple id="gallery-input"/>'+
+      '<span class="gallery-add-icon">＋</span><span class="gallery-add-text">Adicionar</span></label>';
+  }
+  grid.innerHTML=html;
+  document.getElementById('gallery-hint').style.display=galleryImgs.length===0?'block':'none';
+}
+
+async function uploadToCloudinary(file){
+  var fd=new FormData();
+  fd.append('file',file);fd.append('upload_preset',PRESET);fd.append('folder','inan-produtos');
+  var res=await fetch('https://api.cloudinary.com/v1_1/'+CLOUD+'/image/upload',{method:'POST',body:fd});
+  var data=await res.json();
+  if(!data.secure_url)throw new Error('Upload falhou');
+  return data.secure_url;
+}
+
+document.getElementById('gallery-grid').addEventListener('click',function(e){
+  var ri=e.target.dataset.ri,mi=e.target.dataset.mi;
+  if(ri!==undefined){galleryImgs.splice(Number(ri),1);renderGallery();}
+  else if(mi!==undefined){var m=galleryImgs.splice(Number(mi),1)[0];galleryImgs.unshift(m);renderGallery();}
+});
+
+document.getElementById('gallery-grid').addEventListener('change',function(e){
+  if(e.target.id==='gallery-input'){
+    var files=Array.from(e.target.files);
+    var rem=MAX_PHOTOS-galleryImgs.length;
+    var toLoad=files.slice(0,rem);
+    if(files.length>rem)showToast('Máximo '+MAX_PHOTOS+' fotos.','error');
+    showToast('⬆ Enviando foto(s)...');
+    Promise.all(toLoad.map(uploadToCloudinary)).then(function(urls){
+      galleryImgs=galleryImgs.concat(urls);renderGallery();showToast('✓ Foto(s) adicionada(s)!','success');
+    }).catch(function(){showToast('Erro ao enviar foto.','error');});
+  }
+});
+
+// ── FORM ──
+function resetForm(){
+  editingId=null;
+  document.getElementById('f-name').value='';
+  document.getElementById('f-cat').value='';
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-price').value='';
+  document.getElementById('form-title').innerHTML='Novo <span>Produto</span>';
+  document.querySelector('input[name=badge][value=""]').checked=true;
+  document.querySelector('input[name=soldout][value="0"]').checked=true;
+  buildSizesGrid('acessorios');galleryImgs=[];renderGallery();renderList();
+}
+
+function editProduct(id){
+  var p=products.find(function(x){return x.id==id;});if(!p)return;
+  editingId=id;
+  document.getElementById('form-title').innerHTML='Editando <span>'+p.name+'</span>';
+  document.getElementById('f-name').value=p.name||'';
+  document.getElementById('f-cat').value=p.cat||'';
+  document.getElementById('f-desc').value=p.desc||'';
+  document.getElementById('f-price').value=p.price||'';
+  buildSizesGrid(p.cat||'acessorios');
+  setTimeout(function(){setSelectedSizes(p.sizes||[]);},30);
+  var bEl=document.querySelector('input[name=badge][value="'+(p.badge||'')+'"]');
+  if(bEl)bEl.checked=true;
+  var sEl=document.querySelector('input[name=soldout][value="'+(p.soldOut?'1':'0')+'"]');
+  if(sEl)sEl.checked=true;
+  galleryImgs=Array.isArray(p.imgs)?p.imgs.slice():(p.img?[p.img]:[]);
+  renderGallery();renderList();
+  document.querySelector('.panel-right').scrollIntoView({behavior:'smooth'});
+}
+
+async function saveProduct(){
+  var name=document.getElementById('f-name').value.trim();
+  var cat=document.getElementById('f-cat').value;
+  var desc=document.getElementById('f-desc').value.trim();
+  var price=document.getElementById('f-price').value.trim();
+  if(!name||!cat||!desc||!price){showToast('Preencha todos os campos obrigatórios.','error');return;}
+  var sizes=getSelectedSizes();
+  var badge=document.querySelector('input[name=badge]:checked').value;
+  var soldOut=document.querySelector('input[name=soldout]:checked').value==='1';
+  var imgs=galleryImgs.slice(),img=imgs[0]||'';
+  var newId=editingId?editingId:(products.length?String(Math.max.apply(null,products.map(function(p){return Number(p.id)||0;}))+1):'1');
+  var existing=editingId?products.find(function(x){return x.id==editingId;}):null;
+  var ordem=existing?existing.ordem:products.length+1;
+  var product={id:newId,cat:cat,name:name,desc:desc,price:price,sizes:sizes,badge:badge,soldOut:soldOut,imgs:imgs,img:img,ordem:ordem};
+  try{
+    await db.collection(COL).doc(String(newId)).set(product);
+    showToast(editingId?'✓ Produto atualizado!':'✓ Produto adicionado!','success');
+    resetForm();
+  }catch(e){console.error(e);showToast('Erro ao salvar. Tente novamente.','error');}
+}
+
+// ── EVENT DELEGATION ──
+document.getElementById('product-list').addEventListener('click',function(e){
+  var eBtn=e.target.closest('[data-edit]');
+  var dBtn=e.target.closest('[data-del]');
+  var row=e.target.closest('.product-row');
+  if(eBtn){e.stopPropagation();editProduct(eBtn.dataset.edit);}
+  else if(dBtn){e.stopPropagation();deleteId=dBtn.dataset.del;document.getElementById('confirm-overlay').classList.add('open');}
+  else if(row){editProduct(row.dataset.id);}
+});
+
+// ── BUTTONS ──
+document.getElementById('login-btn').addEventListener('click',doLogin);
+document.getElementById('l-user').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('l-pass').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin();});
+document.getElementById('logout-btn').addEventListener('click',function(){sessionStorage.removeItem(SESSION_KEY);location.reload();});
+document.getElementById('new-btn').addEventListener('click',resetForm);
+document.getElementById('save-btn').addEventListener('click',saveProduct);
+document.getElementById('cancel-btn').addEventListener('click',resetForm);
+document.getElementById('confirm-no').addEventListener('click',function(){document.getElementById('confirm-overlay').classList.remove('open');});
+document.getElementById('confirm-yes').addEventListener('click',async function(){
+  if(deleteId){
+    try{
+      await db.collection(COL).doc(String(deleteId)).delete();
+      if(editingId==deleteId)resetForm();
+      showToast('🗑 Produto excluído.','');
+    }catch(e){showToast('Erro ao excluir.','error');}
+  }
+  deleteId=null;document.getElementById('confirm-overlay').classList.remove('open');
+});
+
+// ── INIT ──
+if(sessionStorage.getItem(SESSION_KEY)==='1'){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('admin-screen').style.display='block';
+  startApp();
+}
+</script>
+</body>
+</html>
